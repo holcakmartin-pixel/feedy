@@ -153,7 +153,7 @@ def barva(nazev):
         konec = " ".join(slova[k:])
         for kl, cz in BARVY:
             if kl in konec:
-                return cz
+                return cz[:1].upper() + cz[1:]
     return ""
 
 
