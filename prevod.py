@@ -285,6 +285,44 @@ def nacti_polozky(root):
         }
 
 
+SOUVISEJICI_TYP = {
+    "Bundy": "Kalhoty", "Kalhoty": "Bundy", "Mikiny": "Bundy", "Trička": "Mikiny",
+    "Čepice": "Mikiny", "Holinky": "Kalhoty", "Boty": "Trička", "Vesty": "Bundy",
+    "Brodící kalhoty": "Brodící boty", "Brodící boty": "Brodící kalhoty",
+    "Kraťasy": "Trička", "Ponožky": "Holinky", "Termoprádlo": "Mikiny",
+    "Tašky": "Čepice", "Nože": "Tašky",
+}
+VAZBY = {}  # kod produktu -> (podobne, souvisejici)
+
+
+def model_klic(zaklad):
+    m = re.match(r"^(.*?\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
+    return (m.group(1) if m else zaklad).strip().lower()
+
+
+def priprav_vazby(seznam):
+    """seznam: [(kod, typ, model, sklad)] -> naplni VAZBY (max 4 + 4 produkty skladem)."""
+    import zlib
+    podle_typu = {}
+    for kod, typ, model, sklad in seznam:
+        if typ and sklad > 0:
+            podle_typu.setdefault(typ, []).append((sklad, kod, model))
+    for v in podle_typu.values():
+        v.sort(key=lambda x: (-x[0], x[1]))
+    for kod, typ, model, sklad in seznam:
+        if not typ:
+            continue
+        posun = zlib.crc32(kod.encode()) % 7
+        def vyber(kandidati, pocet=4):
+            k = [c for c in kandidati if c[1] != kod and c[2] != model][:12]
+            if not k:
+                return []
+            k = k[posun % len(k):] + k[:posun % len(k)]
+            return [c[1] for c in k[:pocet]]
+        VAZBY[kod] = (vyber(podle_typu.get(typ, [])),
+                      vyber(podle_typu.get(SOUVISEJICI_TYP.get(typ), [])))
+
+
 def hlavicka(out, skupina, zaklad, velikosti):
     p = skupina[0]
     e = obohat(skupina, zaklad, velikosti)
@@ -316,6 +354,11 @@ def hlavicka(out, skupina, zaklad, velikosti):
         out.append("    </INFORMATION_PARAMETERS>")
     if e["novinka"]:
         out.append(f"    <FLAGS><FLAG><CODE>new</CODE><VALID_UNTIL>{NOVINKA_DO}</VALID_UNTIL></FLAG></FLAGS>")
+    podobne, souvisejici = VAZBY.get(p["kod"], ([], []))
+    if souvisejici:
+        out.append("    <RELATED_PRODUCTS>" + "".join(f"<CODE>{escape(k)}</CODE>" for k in souvisejici) + "</RELATED_PRODUCTS>")
+    if podobne:
+        out.append("    <ALTERNATIVE_PRODUCTS>" + "".join(f"<CODE>{escape(k)}</CODE>" for k in podobne) + "</ALTERNATIVE_PRODUCTS>")
     out.append(f"    <VISIBILITY>{e['viditelnost']}</VISIBILITY>")
     if e["seo"]:
         out.append(f"    <SEO_TITLE>{cdata(e['seo'])}</SEO_TITLE>")
@@ -354,6 +397,14 @@ def main():
         else:
             nazev = (m.group("zaklad") if m else p["nazev"]).rstrip(" -/,")
             skupiny.setdefault(("P", p["kod"]), []).append(dict(p, nazev=nazev))
+
+    prehled = []
+    for (typ_s, klic), polozky in skupiny.items():
+        zaklad = polozky[0]["nazev"] if typ_s == "P" else klic
+        polozky_sorted = sorted(polozky, key=lambda x: klic_velikosti(x.get("velikost", ""))) if typ_s == "V" else polozky
+        prehled.append((polozky_sorted[0]["kod"], urci_typ(zaklad)[0], model_klic(zaklad),
+                        sum(x["sklad"] for x in polozky)))
+    priprav_vazby(prehled)
 
     out = ['<?xml version="1.0" encoding="utf-8"?>', "<SHOP>"]
     produkty = varianty = 0
