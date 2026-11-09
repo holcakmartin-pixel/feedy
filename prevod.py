@@ -228,6 +228,10 @@ def obohat(skupina, zaklad, velikosti):
     if typ not in ("Boty", "Holinky", "Brodící boty") and "protiskluzová podrážka" in vlast:
         vlast.remove("protiskluzová podrážka")
     param = dict(par)
+    if typ not in ("Tašky", "Nože"):
+        param["Druh oblečení"] = [cz.lower()]
+        if cz_barva:
+            param["Barva oblečení"] = [cz_barva]
     if bar_par and cz_barva:
         param[bar_par] = [cz_barva]
     if vel_par and velikosti:
