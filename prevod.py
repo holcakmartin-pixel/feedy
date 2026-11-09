@@ -200,14 +200,19 @@ def obohat(skupina, zaklad, velikosti):
                 "seo": "", "meta": "", "novinka": False}
     nazev = f"{cz} Grundéns {zaklad}"
     cesta, vel_par, bar_par = KATEGORIE_TYPU[typ]
-    if typ in ("Tašky", "Nože"):
-        kat = ["PŘÍVLAČ > " + cesta + (" > " + ZNACKA_KAT if typ == "Tašky" else "")]
-    else:
-        kat = ["PŘÍVLAČ > " + cesta + " > " + ZNACKA_KAT]
-        kat += [t + " > " + cesta for t in TECHNIKY[1:]]
+    def s_predky(koren, cesta_k):
+        casti = [koren] + cesta_k.split(" > ")
+        return [" > ".join(casti[:i]) for i in range(1, len(casti) + 1)]
+
+    hlavni = "PŘÍVLAČ > " + cesta + (" > " + ZNACKA_KAT if typ != "Nože" else "")
+    kat = [hlavni] + s_predky("PŘÍVLAČ", cesta)
+    if typ not in ("Tašky", "Nože"):
+        for t in TECHNIKY[1:]:
+            kat += s_predky(t, cesta)
     znacka_sub = {"Tašky": "Tašky a batohy", "Brodící boty": "Brodící oblečení",
                   "Brodící kalhoty": "Brodící oblečení", "Nože": None}.get(typ, typ)
-    kat.append("ZNAČKY > GRUNDÉNS" + (" > " + znacka_sub if znacka_sub else ""))
+    kat += ["ZNAČKY", "ZNAČKY > GRUNDÉNS"] + (["ZNAČKY > GRUNDÉNS > " + znacka_sub] if znacka_sub else [])
+    kat = list(dict.fromkeys(kat))
     cz_barva = barva(zaklad)
     popis_txt = p["popis"]
     vlast = [v for vz, v in VLASTNOSTI if re.search(vz, popis_txt + " " + zaklad, re.I)]
