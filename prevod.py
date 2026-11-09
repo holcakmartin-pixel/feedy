@@ -78,6 +78,7 @@ TYPY = [
     (r"Sneaker", "Boty", "Tenisky", "jsou tenisky švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
     (r"Slip-On", "Boty", "Nazouváky", "jsou nazouváky švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
     (r"Slide", "Boty", "Pantofle", "jsou pantofle švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
+    (r"Boat Shoe|\bShoe\b", "Boty", "Lodní boty", "jsou lodní boty švédské značky Grundéns s protiskluzovou podrážkou pro palubu i břeh.", {}),
     (r"Sandal", "Boty", "Sandály", "jsou sandály švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
     (r"Ankle Boot|Deck-Boss", "Holinky", "Kotníkové boty", "jsou kotníkové boty švédské značky Grundéns do mokra s protiskluzovou podrážkou.", {}),
     (r"Boot", "Holinky", "Holínky", "jsou palubní holínky švédské značky Grundéns s protiskluzovou podrážkou.", {}),
@@ -159,9 +160,15 @@ def barva(nazev):
 def vycisti_popis(text, nazev):
     t = text.replace("\r", "")
     # nadpis slepeny s prvni vetou ("... Ankle BootKolekce ...")
-    m = re.match(r"^(.{0,140}?Grund[eé]ns.{0,100}?[a-z0-9\u2122\u00ae\"])(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
+    m = re.match(r"^(.{0,140}?Grund[eé]ns(?:.{0,100}?[A-Za-z0-9\u2122\u00ae\"])?)(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
+    nadpis = ""
     if m:
         t = t[m.end():]
+    else:
+        # nadpis bez nazvu znacky slepeny s textem ("... severské tradiciAegir ...")
+        m = re.match(r"^(.{8,120}?(?:^|\s)[a-záčďéěíňóřšťúůýž]+)(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
+        if m:
+            nadpis, t = m.group(1).strip(), t[m.end():]
     # slepene vety ("terénu.12 Inch")
     t = re.sub(r"(?<=[a-záčďéěíňóřšťúůýž\)])([.!?:])(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0-9])", r"\1 ", t)
     casti = [c.strip() for c in re.split(r"\t+|\n+", t) if c.strip()]
@@ -177,6 +184,8 @@ def vycisti_popis(text, nazev):
         html.append("<p>" + escape(c) + "</p>")
     if seznam:
         html.append("<ul>" + "".join(seznam) + "</ul>")
+    if nadpis:
+        html.insert(0, "<p><strong>" + escape(nadpis) + "</strong></p>")
     return "".join(html)
 
 
