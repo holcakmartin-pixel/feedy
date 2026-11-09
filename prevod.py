@@ -169,6 +169,13 @@ def vycisti_popis(text, nazev):
         m = re.match(r"^(.{8,120}?(?:^|\s)[a-záčďéěíňóřšťúůýž]+)(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
         if m:
             nadpis, t = m.group(1).strip(), t[m.end():]
+    # slepene casti bez mezery ("velikostČepice", "Tech TeeObjevte")
+    def rozdel(m):
+        levy = m.group(1)
+        if re.fullmatch(r"[a-záčďéěíňóřšťúůýž]{3,}", levy) or re.search(r"(Tee|Hoodie|Jacket|Bib|Boot|Shirt|Cap|Hat|Beanie|Vest|Pant|Short|Sock|Bag|Backpack|Wader|Sneaker|Sandal|Slide|Trucker|Zip|Crew|Top|Bottom)$", levy):
+            return levy + "\n" + m.group(2)
+        return m.group(0)
+    t = re.sub(r"(?<![\w-])([A-Za-záčďéěíňóřšťúůýž]+)(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž]{2})([A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ])", rozdel, t)
     # slepene vety ("terénu.12 Inch")
     t = re.sub(r"(?<=[a-záčďéěíňóřšťúůýž\)])([.!?:])(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0-9])", r"\1 ", t)
     casti = [c.strip() for c in re.split(r"\t+|\n+", t) if c.strip()]
@@ -204,8 +211,10 @@ def obohat(skupina, zaklad, velikosti):
         casti = [koren] + cesta_k.split(" > ")
         return [" > ".join(casti[:i]) for i in range(1, len(casti) + 1)]
 
-    hlavni = "PŘÍVLAČ > " + cesta + (" > " + ZNACKA_KAT if typ != "Nože" else "")
-    kat = [hlavni] + s_predky("PŘÍVLAČ", cesta)
+    znacka_kat = "PŘÍVLAČ > " + cesta + (" > " + ZNACKA_KAT if typ != "Nože" else "")
+    model_nazev = MODELY.get((typ, model_klic(zaklad)))
+    hlavni = znacka_kat + (" > " + model_nazev if model_nazev and typ != "Nože" else "")
+    kat = [hlavni, znacka_kat] + s_predky("PŘÍVLAČ", cesta)
     if typ not in ("Tašky", "Nože"):
         for t in TECHNIKY[1:]:
             kat += s_predky(t, cesta)
@@ -254,7 +263,7 @@ def obohat(skupina, zaklad, velikosti):
                    "na prodejně v Písku nebo e-mailem.</p>")
     meta = f"{nazev}. Originál Grundéns, nákup online i na prodejně v Písku."
     return {"nazev": nazev, "kategorie": kat, "vychozi": kat[0],
-            "viditelnost": "visible" if sklad > 0 else "hidden",
+            "viditelnost": "visible" if sklad > 0 and p["obrazky"] else "hidden",
             "kratky": kratky, "popis": dlouhy, "param": param,
             "seo": f"{nazev} | Moje přívlač", "meta": meta[:160], "novinka": True}
 
@@ -293,6 +302,12 @@ SOUVISEJICI_TYP = {
     "Tašky": "Čepice", "Nože": "Tašky",
 }
 VAZBY = {}  # kod produktu -> (podobne, souvisejici)
+MODELY = {}  # (typ, model) -> nazev modelove kategorie (jen modely ve 2+ barvach)
+
+
+def model_nazev(zaklad):
+    m = re.match(r"^(.*?\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
+    return (m.group(1) if m else zaklad).strip()
 
 
 def model_klic(zaklad):
@@ -405,6 +420,15 @@ def main():
         prehled.append((polozky_sorted[0]["kod"], urci_typ(zaklad)[0], model_klic(zaklad),
                         sum(x["sklad"] for x in polozky)))
     priprav_vazby(prehled)
+    pocty, nazvy = {}, {}
+    for (typ_s, klic), polozky in skupiny.items():
+        zaklad = polozky[0]["nazev"] if typ_s == "P" else klic
+        typ = urci_typ(zaklad)[0]
+        if typ:
+            k = (typ, model_klic(zaklad))
+            pocty[k] = pocty.get(k, 0) + 1
+            nazvy.setdefault(k, model_nazev(zaklad))
+    MODELY.update({k: nazvy[k] for k, n in pocty.items() if n >= 2})
 
     out = ['<?xml version="1.0" encoding="utf-8"?>', "<SHOP>"]
     produkty = varianty = 0
