@@ -29,11 +29,12 @@ def cdata(value):
 # Velikost na konci nazvu (Moris ji nema v samostatnem poli).
 VELIKOST = re.compile(
     r"^(?P<zaklad>.*?)\s+(?:vel\.\s*)?(?P<velikost>"
-    r"(?:\d{1,2}(?:[.,]5)?\s*/\s*)?EU\s*\d{2}(?:[.,]5)?"           # 10 / EU 43, EU 43
-    r"|(?:(?:\d?X{0,3}[SML])\s+)?(?:(?:King|TALL|Tall|Short)\s+)?\d{2}-\d{2}"  # L King 42-44
+    r"(?:\d{1,2}(?:[.,]5)?\s*/\s*)?[Ee][Uu]\s*\d{2}(?:[.,]5)?"           # 10 / EU 43, EU 43
+    r"|(?:(?:\d?X{0,3}[SML])\s+)?(?:(?:King|TALL|Tall|Short|Regular)\s+)?\d{2}-\d{2}"  # L King 42-44
     r"|[SML]\s+\d{1,2}"                                              # M 8
     r"|\d?X{0,3}[SML](?:/\d?X{0,3}[SML])?"                            # S, XL, 3XL, S/M
     r"|O/S|ONE SIZE"
+    r"|\d{2}"                                                       # pas 32, bota 43
     r")$"
 )
 BEZ_VELIKOSTI = {"O/S", "ONE SIZE"}
@@ -45,7 +46,7 @@ def popis_velikosti(v):
     m = re.match(r"(\d{1,2}(?:[.,]5)?)\s*/\s*EU\s*(\S+)$", v)
     if m:
         return f"EU {m.group(2)} (US {m.group(1)})"
-    return re.sub(r"^EU\s*", "EU ", v)
+    return re.sub(r"^[Ee][Uu]\s*", "EU ", v)
 
 
 def klic_velikosti(v):
@@ -125,9 +126,11 @@ def main():
         m = VELIKOST.match(p["nazev"])
         if m and m.group("velikost") not in BEZ_VELIKOSTI:
             p["velikost"] = popis_velikosti(m.group("velikost"))
-            skupiny.setdefault(("V", m.group("zaklad").rstrip(" -/")), []).append(p)
+            if p["velikost"].isdigit() and re.search(r"Boot|Shoe|Slide|Sandal", p["nazev"], re.I):
+                p["velikost"] = "EU " + p["velikost"]
+            skupiny.setdefault(("V", m.group("zaklad").rstrip(" -/,")), []).append(p)
         else:
-            nazev = m.group("zaklad").rstrip(" -/") if m else p["nazev"]
+            nazev = (m.group("zaklad") if m else p["nazev"]).rstrip(" -/,")
             skupiny.setdefault(("P", p["kod"]), []).append(dict(p, nazev=nazev))
 
     out = ['<?xml version="1.0" encoding="utf-8"?>', "<SHOP>"]
