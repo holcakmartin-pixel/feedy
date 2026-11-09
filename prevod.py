@@ -17,6 +17,21 @@ VYSTUP = "public/grundens.xml"
 G = "{http://base.google.com/ns/1.0}"
 
 
+FOTO_ZAKLAD = "https://eshop.moris-distribution.cz/pictureprovider.aspx?z=1200&format=jpeg&path="
+
+
+def velka_fotka(url):
+    """Fotka v plném rozlišení místo náhledu 300 px."""
+    url = (url or "").strip()
+    m = re.search(r"[?&]path=([^&]+)", url)
+    if "pictureprovider.aspx" in url and m:
+        return FOTO_ZAKLAD + m.group(1)
+    m = re.search(r"/userdata/cache/images/storecards/([^/]+)/\d+/([^/?]+)", url)
+    if m:
+        return FOTO_ZAKLAD + m.group(1) + "%2F" + m.group(2)
+    return url
+
+
 def text(item, tag):
     el = item.find(tag)
     return (el.text or "").strip() if el is not None and el.text else ""
@@ -296,7 +311,7 @@ def nacti_polozky(root):
         ]
         yield {
             "kod": kod, "nazev": nazev, "vyrobce": vyrobce, "cena": cena, "sklad": sklad,
-            "obrazky": [o for o in dict.fromkeys(obrazky) if o],
+            "obrazky": [o for o in dict.fromkeys(velka_fotka(o) for o in obrazky) if o],
             "popis": text(item, G + "description"),
             "ean": text(item, G + "gtin"), "mpn": text(item, G + "mpn"),
         }
