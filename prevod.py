@@ -280,6 +280,10 @@ def nacti_polozky(root):
             continue
         cena = re.sub(r"[^0-9.,]", "", text(item, G + "price")).replace(",", ".")
         try:
+            cena = str(int(round(float(cena)))) if cena else ""
+        except ValueError:
+            cena = ""
+        try:
             sklad = max(0, int(float(text(item, G + "availability") or 0)))
         except ValueError:
             sklad = 0
