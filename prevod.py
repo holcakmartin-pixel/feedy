@@ -258,7 +258,7 @@ def obohat(skupina, zaklad, velikosti):
     delka = lambda h: len(re.sub(r"<[^>]+>", "", h))
     if delka(dlouhy) < max(300, 2 * len(uvodni) + 120):
         dlouhy += doplnek
-    if delka(dlouhy) < max(300, 2 * len(uvodni) + 120):
+    if delka(dlouhy) < max(300, 2 * len(uvodni) + 120) and velikosti:
         dlouhy += ("<p>Velikost vyberte podle tabulky výrobce. Pokud si nejste jistí, poradíme vám "
                    "na prodejně v Písku nebo e-mailem.</p>")
     meta = f"{nazev}. Originál Grundéns, nákup online i na prodejně v Písku."
@@ -306,12 +306,12 @@ MODELY = {}  # (typ, model) -> nazev modelove kategorie (jen modely ve 2+ barvac
 
 
 def model_nazev(zaklad):
-    m = re.match(r"^(.*?\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
+    m = re.match(r"^(.*\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
     return (m.group(1) if m else zaklad).strip()
 
 
 def model_klic(zaklad):
-    m = re.match(r"^(.*?\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
+    m = re.match(r"^(.*\b(Hoodie|Sweatshirt|Crew|Tee|T-Shirt|Shirt|Jacket|Anorak|Parka|Shacket|Coat|Bib|Pants?|Boot|Sneaker|Slip-On|Slide|Sandal|Shoe|Beanie|Trucker|Cap|Hat|Vest|Short|Wader|Sock|Bag|Backpack|Duffel|Tote|Zip|Bottom|Top|Smock|Glove|Gaiter|Polo))\b", zaklad, re.I)
     return (m.group(1) if m else zaklad).strip().lower()
 
 
