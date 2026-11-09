@@ -58,6 +58,193 @@ def klic_velikosti(v):
     return (rank, [float(c.replace(",", ".")) for c in cisla], v)
 
 
+# ---------------------------------------------------------------------------
+# Doplneni pro e-shop: typ produktu, cesky nazev, kategorie, popisky, filtry.
+TECHNIKY = ["PŘÍVLAČ", "KAPRAŘINA", "MOŘE", "MUŠKAŘENÍ", "SUMCAŘINA",
+            "PLAVANÁ A FEEDER", "TROUT AREA"]
+URCENI = "přívlač, kaprařina, moře, muškaření, sumcařina, plavaná a feeder, trout area"
+ZNACKA_KAT = "Grundéns"
+NOVINKA_DO = "2027-03-01"
+
+# (regex na anglicky nazev, typ kategorie, cesky nazev, uvodni veta, parametry)
+TYPY = [
+    (r"Dog Collar|Dog Leash|BRIS|Tool Belt|Knee pad|Plastic Hook|Suspenders|Patch Kit|HEXAGRIP", None, "", "", {}),
+    (r"Knife", "Nože", "Nůž", "je rybářský nůž švédské značky Grundéns s ochranným pouzdrem.", {}),
+    (r"Backpack|Roll Top", "Tašky", "Batoh", "je batoh švédské značky Grundéns na rybářskou výbavu i výpravy k vodě.", {"Druh tašky": "batoh"}),
+    (r"Bag|Duffel|Tote", "Tašky", "Taška", "je taška švédské značky Grundéns na rybářskou výbavu i výpravy k vodě.", {"Druh tašky": "taška"}),
+    (r"Wader", "Brodící kalhoty", "Brodicí kalhoty", "jsou brodicí kalhoty (prsačky) švédské značky Grundéns pro lov přímo z vody.", {}),
+    (r"Wading Boot", "Brodící boty", "Brodicí boty", "jsou brodicí boty švédské značky Grundéns k prsačkám se stockingfoot ponožkou.", {}),
+    (r"Sock", "Ponožky", "Ponožky", "jsou funkční ponožky švédské značky Grundéns do holínek a brodicích bot.", {}),
+    (r"Sneaker", "Boty", "Tenisky", "jsou tenisky švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
+    (r"Slip-On", "Boty", "Nazouváky", "jsou nazouváky švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
+    (r"Slide", "Boty", "Pantofle", "jsou pantofle švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
+    (r"Sandal", "Boty", "Sandály", "jsou sandály švédské značky Grundéns s protiskluzovou podrážkou pro loď i břeh.", {}),
+    (r"Ankle Boot|Deck-Boss", "Holinky", "Kotníkové boty", "jsou kotníkové boty švédské značky Grundéns do mokra s protiskluzovou podrážkou.", {}),
+    (r"Boot", "Holinky", "Holínky", "jsou palubní holínky švédské značky Grundéns s protiskluzovou podrážkou.", {}),
+    (r"Grundies.*(Bottom|Pant)|Thermal Bottom", "Termoprádlo", "Termokalhoty", "jsou funkční spodní vrstva švédské značky Grundéns, která hřeje a odvádí pot.", {}),
+    (r"Grundies|Thermal 1/2", "Termoprádlo", "Termotriko", "je funkční spodní vrstva švédské značky Grundéns, která hřeje a odvádí pot.", {}),
+    (r"\bBib\b", "Kalhoty", "Laclové kalhoty", "jsou rybářské laclové kalhoty švédské značky Grundéns pro práci na lodi i lov v dešti.", {}),
+    (r"Pant|Trouser", "Kalhoty", "Kalhoty", "jsou rybářské kalhoty švédské značky Grundéns pro lov i pobyt venku.", {}),
+    (r"\bShort\b", "Kraťasy", "Kraťasy", "jsou kraťasy švédské značky Grundéns na letní lov.", {}),
+    (r"Vest", "Vesty", "Vesta", "je vesta švédské značky Grundéns jako teplá vrstva pod bundu.", {}),
+    (r"Jacket|Anorak|Parka|Shell|Shacket|Coat|Smock", "Bundy", "Bunda", "je rybářská bunda švédské značky Grundéns pro lov z lodi i ze břehu.", {}),
+    (r"Beanie", "Čepice", "Čepice", "je zimní čepice švédské značky Grundéns pro chladné dny u vody.", {}),
+    (r"Sou'wester|\bHat\b|Bucket", "Čepice", "Klobouk", "je klobouk švédské značky Grundéns do deště i slunce.", {}),
+    (r"Trucker|Truck\b|\bCap\b|Visor", "Čepice", "Kšiltovka", "je kšiltovka švédské značky Grundéns, která chrání před sluncem u vody.", {}),
+    (r"Glove", "Rukavice", "Rukavice", "jsou rybářské rukavice švédské značky Grundéns.", {}),
+    (r"Gaiter|Neck", "Nákrčníky", "Nákrčník", "je nákrčník švédské značky Grundéns.", {}),
+    (r"Hoodie|Sweatshirt|Fleece|Crew|1/4|Pullover|\bZip\b", "Mikiny", "Mikina", "je pohodlná mikina švédské značky Grundéns pro chladnější dny u vody.", {}),
+    (r"Tee|T-Shirt|Shirt|\bSun\b|\bLS\b|\bSS\b|Polo", "Trička", "Tričko", "je tričko švédské značky Grundéns pro lov i běžné nošení.", {}),
+]
+# typ -> (cesta v PŘÍVLAČ, cesta pod ostatnimi technikami, filtr barvy, filtr velikosti)
+KATEGORIE_TYPU = {
+    "Boty": ("Oblečení > Boty", "Velikost boty", "Barva oblečení"),
+    "Brodící boty": ("Oblečení > Brodící oblečení > Brodící boty", "Velikost boty", None),
+    "Brodící kalhoty": ("Oblečení > Brodící oblečení > Brodící kalhoty", None, None),
+    "Bundy": ("Oblečení > Bundy", "Velikost bundy", "Barva bundy"),
+    "Čepice": ("Oblečení > Čepice", None, "Barva čepice"),
+    "Holinky": ("Oblečení > Holinky", "Velikost boty", "Barva oblečení"),
+    "Kalhoty": ("Oblečení > Kalhoty", "Velikost kalhot", "Barva oblečení"),
+    "Kraťasy": ("Oblečení > Kraťasy", "Velikost kalhot", "Barva oblečení"),
+    "Mikiny": ("Oblečení > Mikiny", "Velikost mikiny", "Barva oblečení"),
+    "Nákrčníky": ("Oblečení > Nákrčníky", None, "Barva oblečení"),
+    "Ponožky": ("Oblečení > Ponožky", None, None),
+    "Rukavice": ("Oblečení > Rukavice", None, "Barva rukavic"),
+    "Termoprádlo": ("Oblečení > Termoprádlo", "Velikost trika", "Barva oblečení"),
+    "Trička": ("Oblečení > Trička", "Velikost trika", "Barva oblečení"),
+    "Vesty": ("Oblečení > Vesty", "Velikost bundy", "Barva oblečení"),
+    "Tašky": ("Příslušenství > Tašky a obaly", None, "Barva tašky/pouzdra"),
+    "Nože": ("Příslušenství > Nože a brousky > Nože", None, None),
+}
+BARVY = [  # klicove slovo v anglickem nazvu barvy -> cesky
+    ("camo", "maskovací"), ("plaid", "kostkovaná"), ("black", "černá"), ("smoke", "černá"),
+    ("anchor", "šedá"), ("charcoal", "šedá"), ("metal", "šedá"), ("heather", "šedá"),
+    ("grey", "šedá"), ("gray", "šedá"), ("stone", "šedá"), ("silver", "šedá"),
+    ("red orange", "oranžová"), ("orange", "oranžová"), ("red", "červená"),
+    ("navy", "modrá"), ("blue", "modrá"), ("abyss", "modrá"), ("depths", "modrá"),
+    ("green", "zelená"), ("loden", "zelená"), ("forest", "zelená"), ("lichen", "zelená"),
+    ("sagebrush", "zelená"), ("grass", "zelená"), ("seneca", "zelená"),
+    ("otter", "hnědá"), ("brown", "hnědá"), ("cedar", "hnědá"), ("driftwood", "hnědá"),
+    ("khaki", "béžová"), ("bronze", "hnědá"), ("whiskey", "hnědá"), ("clay", "hnědá"),
+    ("reed", "béžová"), ("oyster", "béžová"), ("white", "bílá"), ("yellow", "žlutá"),
+]
+VLASTNOSTI = [
+    (r"gore-tex", "Gore-Tex"),
+    (r"nepromok|vodotěsn|voděodoln|waterproof", "nepromokavé"),
+    (r"zateplen|izolac|insulat|hřej", "zateplené"),
+    (r"\bUV\b|UPF", "UV ochrana"),
+    (r"protiskluz|přilnavost|neklouz", "protiskluzová podrážka"),
+]
+VELIKOST_PARAM = {"2XL": "XXL", "3XL": "XXXL", "4XL": "XXXXL"}
+
+
+def urci_typ(nazev):
+    for vzor, typ, cz, uvod, par in TYPY:
+        if re.search(vzor, nazev, re.I):
+            return typ, cz, uvod, par
+    return None, "", "", {}
+
+
+def barva(nazev):
+    n = nazev.lower()
+    slova = n.split()
+    for k in range(len(slova)):  # od konce nazvu
+        konec = " ".join(slova[k:])
+        for kl, cz in BARVY:
+            if kl in konec:
+                return cz
+    return ""
+
+
+def vycisti_popis(text, nazev):
+    t = text.replace("\r", "")
+    # nadpis slepeny s prvni vetou ("... Ankle BootKolekce ...")
+    m = re.match(r"^(.{0,140}?Grund[eé]ns.{0,100}?[a-z0-9\u2122\u00ae\"])(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
+    if m:
+        t = t[m.end():]
+    # slepene vety ("terénu.12 Inch")
+    t = re.sub(r"(?<=[a-záčďéěíňóřšťúůýž\)])([.!?:])(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ0-9])", r"\1 ", t)
+    casti = [c.strip() for c in re.split(r"\t+|\n+", t) if c.strip()]
+    html, seznam = [], []
+    for i, c in enumerate(casti):
+        polozka = i > 0 and len(c) < 200 and (seznam or casti[i - 1].endswith(":"))
+        if polozka:
+            seznam.append("<li>" + escape(c) + "</li>")
+            continue
+        if seznam:
+            html.append("<ul>" + "".join(seznam) + "</ul>")
+            seznam = []
+        html.append("<p>" + escape(c) + "</p>")
+    if seznam:
+        html.append("<ul>" + "".join(seznam) + "</ul>")
+    return "".join(html)
+
+
+def obohat(skupina, zaklad, velikosti):
+    """Vrati slovnik s nazvem, popisky, kategoriemi, parametry a viditelnosti."""
+    p = skupina[0]
+    typ, cz, uvod, par = urci_typ(zaklad)
+    sklad = sum(x["sklad"] for x in skupina)
+    if not typ:
+        return {"nazev": zaklad, "kategorie": [KATEGORIE], "vychozi": KATEGORIE,
+                "viditelnost": "hidden", "kratky": "", "popis": "", "param": {},
+                "seo": "", "meta": "", "novinka": False}
+    nazev = f"{cz} Grundéns {zaklad}"
+    cesta, vel_par, bar_par = KATEGORIE_TYPU[typ]
+    if typ in ("Tašky", "Nože"):
+        kat = ["PŘÍVLAČ > " + cesta + (" > " + ZNACKA_KAT if typ == "Tašky" else "")]
+    else:
+        kat = ["PŘÍVLAČ > " + cesta + " > " + ZNACKA_KAT]
+        kat += [t + " > " + cesta for t in TECHNIKY[1:]]
+    znacka_sub = {"Tašky": "Tašky a batohy", "Brodící boty": "Brodící oblečení",
+                  "Brodící kalhoty": "Brodící oblečení", "Nože": None}.get(typ, typ)
+    kat.append("ZNAČKY > GRUNDÉNS" + (" > " + znacka_sub if znacka_sub else ""))
+    cz_barva = barva(zaklad)
+    popis_txt = p["popis"]
+    vlast = [v for vz, v in VLASTNOSTI if re.search(vz, popis_txt + " " + zaklad, re.I)]
+    if typ not in ("Boty", "Holinky", "Brodící boty") and "protiskluzová podrážka" in vlast:
+        vlast.remove("protiskluzová podrážka")
+    param = dict(par)
+    if bar_par and cz_barva:
+        param[bar_par] = [cz_barva]
+    if vel_par and velikosti:
+        vals = []
+        for v in velikosti:
+            v2 = re.sub(r"^EU\s*", "", v.split(" (")[0])
+            v2 = VELIKOST_PARAM.get(v2, v2)
+            if v2 not in vals:
+                vals.append(v2)
+        param[vel_par] = vals
+    if vlast and typ not in ("Tašky", "Nože"):
+        param["Vlastnosti oblečení"] = vlast
+    radky = [("značka", "Grundéns"), ("model", zaklad)]
+    if cz_barva:
+        radky.append(("barva", cz_barva))
+    if velikosti:
+        radky.append(("velikosti", ", ".join(velikosti)))
+    if vlast:
+        radky.append(("vlastnosti", ", ".join(vlast)))
+    radky.append(("určení", URCENI if typ not in ("Tašky", "Nože") else "všechny druhy rybolovu"))
+    tab = "".join(f"<tr><td><strong>{escape(a)}:</strong></td><td>{escape(b)}</td></tr>" for a, b in radky)
+    uvodni = f"{zaklad} {uvod}"
+    kratky = f"<p>{escape(uvodni)}</p><table border=\"2\" cellspacing=\"2\" cellpadding=\"2\"><tbody>{tab}</tbody></table>"
+    dlouhy = vycisti_popis(popis_txt, zaklad)
+    doplnek = ("<p>Grundéns vyrábí oblečení pro rybáře od roku 1926 a vychází z potřeb profesionálních "
+               "rybářů ze severského pobřeží. Proto klade důraz na odolné materiály, praktické detaily "
+               "a pohodlí i při celodenním nošení v náročném počasí.</p>")
+    delka = lambda h: len(re.sub(r"<[^>]+>", "", h))
+    if delka(dlouhy) < max(300, 2 * len(uvodni) + 120):
+        dlouhy += doplnek
+    if delka(dlouhy) < max(300, 2 * len(uvodni) + 120):
+        dlouhy += ("<p>Velikost vyberte podle tabulky výrobce. Pokud si nejste jistí, poradíme vám "
+                   "na prodejně v Písku nebo e-mailem.</p>")
+    meta = f"{nazev}. Originál Grundéns, nákup online i na prodejně v Písku."
+    return {"nazev": nazev, "kategorie": kat, "vychozi": kat[0],
+            "viditelnost": "visible" if sklad > 0 else "hidden",
+            "kratky": kratky, "popis": dlouhy, "param": param,
+            "seo": f"{nazev} | Moje přívlač", "meta": meta[:160], "novinka": True}
+
+
 def nacti_polozky(root):
     for item in root.iter("item"):
         znacka = text(item, G + "brand")
@@ -84,20 +271,41 @@ def nacti_polozky(root):
         }
 
 
-def hlavicka(out, p, nazev):
-    out.append(f"    <NAME>{cdata(nazev)}</NAME>")
-    if p["popis"]:
-        out.append(f"    <DESCRIPTION>{cdata(p['popis'])}</DESCRIPTION>")
+def hlavicka(out, skupina, zaklad, velikosti):
+    p = skupina[0]
+    e = obohat(skupina, zaklad, velikosti)
+    out.append(f"    <NAME>{cdata(e['nazev'])}</NAME>")
+    if e["kratky"]:
+        out.append(f"    <SHORT_DESCRIPTION>{cdata(e['kratky'])}</SHORT_DESCRIPTION>")
+    popis = e["popis"] or p["popis"]
+    if popis:
+        out.append(f"    <DESCRIPTION>{cdata(popis)}</DESCRIPTION>")
     out.append(f"    <MANUFACTURER>{escape(p['vyrobce'])}</MANUFACTURER>")
     out.append("    <SUPPLIER>Moris Distribution</SUPPLIER>")
     out.append("    <CATEGORIES>")
-    out.append(f"      <CATEGORY>{cdata(KATEGORIE)}</CATEGORY>")
-    out.append(f"      <DEFAULT_CATEGORY>{cdata(KATEGORIE)}</DEFAULT_CATEGORY>")
+    for k in e["kategorie"]:
+        out.append(f"      <CATEGORY>{cdata(k)}</CATEGORY>")
+    out.append(f"      <DEFAULT_CATEGORY>{cdata(e['vychozi'])}</DEFAULT_CATEGORY>")
     out.append("    </CATEGORIES>")
     if p["obrazky"]:
         out.append("    <IMAGES>")
         out.extend(f"      <IMAGE>{cdata(o)}</IMAGE>" for o in p["obrazky"])
         out.append("    </IMAGES>")
+    if e["param"]:
+        out.append("    <INFORMATION_PARAMETERS>")
+        for n, vals in e["param"].items():
+            vals = vals if isinstance(vals, list) else [vals]
+            out.append("      <INFORMATION_PARAMETER>")
+            out.append(f"        <NAME>{cdata(n)}</NAME>")
+            out.extend(f"        <VALUE>{cdata(v)}</VALUE>" for v in vals)
+            out.append("      </INFORMATION_PARAMETER>")
+        out.append("    </INFORMATION_PARAMETERS>")
+    if e["novinka"]:
+        out.append(f"    <FLAGS><FLAG><CODE>new</CODE><VALID_UNTIL>{NOVINKA_DO}</VALID_UNTIL></FLAG></FLAGS>")
+    out.append(f"    <VISIBILITY>{e['viditelnost']}</VISIBILITY>")
+    if e["seo"]:
+        out.append(f"    <SEO_TITLE>{cdata(e['seo'])}</SEO_TITLE>")
+        out.append(f"    <META_DESCRIPTION>{cdata(e['meta'])}</META_DESCRIPTION>")
 
 
 def detail(out, p, odsazeni):
@@ -139,13 +347,13 @@ def main():
         out.append("  <SHOPITEM>")
         if typ == "P":
             p = polozky[0]
-            hlavicka(out, p, p["nazev"])
+            hlavicka(out, polozky, p["nazev"], [])
             if p["mpn"]:
                 out.append(f"    <MANUFACTURER_CODE>{escape(p['mpn'])}</MANUFACTURER_CODE>")
             detail(out, p, 4)
         else:
             polozky.sort(key=lambda x: klic_velikosti(x["velikost"]))
-            hlavicka(out, polozky[0], klic)
+            hlavicka(out, polozky, klic, [x["velikost"] for x in polozky])
             out.append("    <VARIANTS>")
             for p in polozky:
                 out.append("      <VARIANT>")
