@@ -5,7 +5,7 @@ import re
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 
 ZDROJ = "https://eshop.moris-distribution.cz/zbozigooglecustom.xml"
 ZNACKY = {
@@ -174,6 +174,11 @@ def barva(nazev):
 
 def vycisti_popis(text, nazev):
     t = text.replace("\r", "")
+    # odkazy na distributora a zbytky z jeho webu
+    t = re.sub(r"(?:Společnost\s+)?MORIS\s+design.*?(?:Slovensko|Slovenskou republiku)\s*\.?", "", t, flags=re.I | re.S)
+    t = re.sub(r"[^.!?\n]*SAVETHEDAY[^.!?\n]*[.!?]?", "", t, flags=re.I)
+    t = re.sub(r"\s*Velikostní tabulka\s*", " ", t)
+    t = re.sub(r"\s*O ZNAČCE\s*", "\nO značce Grundéns\n", t)
     # nadpis slepeny s prvni vetou ("... Ankle BootKolekce ...")
     m = re.match(r"^(.{0,140}?Grund[eé]ns(?:.{0,100}?[A-Za-z0-9\u2122\u00ae\"])?)(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-záčďéěíňóřšťúůýž])", t)
     nadpis = ""
@@ -262,8 +267,6 @@ def obohat(skupina, zaklad, velikosti):
     radky = [("značka", "Grundéns"), ("model", zaklad)]
     if cz_barva:
         radky.append(("barva", cz_barva))
-    if velikosti:
-        radky.append(("velikosti", ", ".join(velikosti)))
     if vlast:
         radky.append(("vlastnosti", ", ".join(vlast)))
     radky.append(("určení", URCENI if typ not in ("Tašky", "Nože") else "všechny druhy rybolovu"))
@@ -379,7 +382,9 @@ def hlavicka(out, skupina, zaklad, velikosti):
     out.append("    </CATEGORIES>")
     if p["obrazky"]:
         out.append("    <IMAGES>")
-        out.extend(f"      <IMAGE>{cdata(o)}</IMAGE>" for o in p["obrazky"])
+        for i, o in enumerate(p["obrazky"]):
+            popisek = e["nazev"] if i == 0 else f"{e['nazev']} – foto {i + 1}"
+            out.append(f"      <IMAGE description={quoteattr(popisek)}>{cdata(o)}</IMAGE>")
         out.append("    </IMAGES>")
     if e["param"]:
         out.append("    <INFORMATION_PARAMETERS>")
