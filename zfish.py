@@ -4,6 +4,7 @@
 # Kazda varianta dodavatele (velikost, gramaz...) je samostatny produkt.
 # Vse jde do skryte kategorie "Zfish feed", produkty jsou skryte.
 import html
+import json
 import os
 import re
 import sys
@@ -14,6 +15,7 @@ ZDROJ = "https://www.zfish.eu/xml/products.xml"
 KATEGORIE = "Zfish feed"
 DODAVATEL = "Zfish"
 VYSTUP = "public/zfish.xml"
+ZDROJ_JSON = "public/zfish-zdroj.json"
 ZNACKY = {"FILFISHING": "Filfishing"}
 
 
@@ -73,6 +75,7 @@ def main():
     out = ['<?xml version="1.0" encoding="utf-8"?>', "<SHOP>"]
     kody = set()
     pocet = 0
+    zdroj = []
     for item in bloky(data, "ITEM"):
         nazev = re.sub(r"\s+", " ", pole(item, "PRODUCT_NAME")).strip()
         kod = pole(item, "PRODUCT_CODE")
@@ -88,6 +91,11 @@ def main():
             "dph": pole(item, "PRODUCT_VATRATE") or "21",
             "sklad": sklad(pole(item, "PRODUCT_STOCK_VALUE")),
         }
+        cesty = [pole(c, "CATEGORY_PATH") for c in bloky(item, "PRODUCT_MAIN_CATEGORY")]
+        for oc in bloky(item, "PRODUCT_OTHER_CATEGORIES"):
+            cesty += [pole(c, "CATEGORY_PATH") for c in bloky(oc, "CATEGORY")]
+        dalsi = [[pole(p, "PARAM_NAME"), pole(p, "PARAM_VALUE")]
+                 for op in bloky(item, "PRODUCT_OTHER_PARAMS") for p in bloky(op, "PARAM")]
         varianty = []
         for pp in bloky(item, "PRODUCT_PARAMS"):
             for p in bloky(pp, "PARAM"):
@@ -97,6 +105,7 @@ def main():
                     continue
                 vnazev = nazev if hodnota and hodnota.lower() in nazev.lower() else f"{nazev} {hodnota}".strip()
                 varianty.append(dict(zaklad, nazev=vnazev, kod=vkod,
+                                     vparam=pole(p, "PARAM_NAME"), vhodnota=hodnota,
                                      ean=pole(p, "PARAM_EAN"),
                                      cena=cena(pole(p, "PARAM_PRICE_INCVAT")) or zaklad["cena"],
                                      sklad=sklad(pole(p, "PARAM_STOCK_VALUE"))))
@@ -104,6 +113,11 @@ def main():
             if v["kod"] in kody:
                 continue
             kody.add(v["kod"])
+            zdroj.append({"kod": v["kod"], "rodic": kod, "nazev": v["nazev"], "zaklad": nazev,
+                          "vparam": v.get("vparam", ""), "vhodnota": v.get("vhodnota", ""),
+                          "vyrobce": vyrobce, "kategorie": cesty, "parametry": dalsi,
+                          "cena": v["cena"], "sklad": v["sklad"], "ean": v["ean"],
+                          "fotky": len(fotky), "popis": popis})
             out.append("  <SHOPITEM>")
             out.append(f"    <NAME>{cdata(v['nazev'])}</NAME>")
             if popis:
@@ -141,6 +155,8 @@ def main():
     os.makedirs("public", exist_ok=True)
     with open(VYSTUP, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
+    with open(ZDROJ_JSON, "w", encoding="utf-8") as f:
+        json.dump(zdroj, f, ensure_ascii=False)
     print(f"Hotovo: {pocet} produktu -> {VYSTUP}")
 
 
